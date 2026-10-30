@@ -704,6 +704,52 @@
             border-radius: 50%; animation: spin 0.9s linear infinite;
         }
         #loader p { color: var(--text-secondary); font-size: 0.95rem; text-align: center; padding: 0 20px; font-weight: 600; }
+        
+        /* Error Message Box */
+        .error-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--surface-2);
+            border: 2px solid var(--netflix-red);
+            border-radius: 12px;
+            padding: 30px 24px;
+            max-width: 90%;
+            width: 400px;
+            text-align: center;
+            z-index: 5000;
+            display: none;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.9);
+        }
+        .error-box.show { display: block; animation: modalFadeIn 0.3s ease; }
+        .error-box h3 {
+            color: var(--netflix-red);
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+            font-weight: 800;
+        }
+        .error-box p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .error-box button {
+            background: var(--netflix-red);
+            color: #fff;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 6px;
+            font-family: 'Tajawal', sans-serif;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .error-box button:hover {
+            background: var(--netflix-red-dark);
+            transform: scale(1.05);
+        }
 
         .episodes-modal { position: fixed; inset: 0; z-index: 1500; display: none; }
         .episodes-modal.active { display: block; }
@@ -868,17 +914,24 @@
         <div class="telegram-modal-content">
             <div class="telegram-icon-wrapper">
                 <svg class="telegram-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.7.01-.03.01-.15-.05-.2-.06-.06-.15-.04-.21-.03-.09.02-1.49.95-4.22 2.79-.4.28-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.15 3.35-1.36 3.74-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .32z"></path>
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.7.01-.03.01-.15-.05-.2-.06-.06-.15-.04-.21-.03-.09.02-1.49.95-4.22 2.79-.4.28-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.15 3.35-1.36 3.74-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .32z"/>
                 </svg>
             </div>
             <h2 class="telegram-title">انضم إلى قناة نجم الشاشات</h2>
             <p class="telegram-desc">انضم إلى قناتنا ليصلك كل جديد أولاً بأول من التحديثات والمميزات الجديدة فور نزولها</p>
             <button class="telegram-btn" id="telegramJoinBtn">
-                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"></path></svg>
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
                 انضم الآن
             </button>
             <button class="telegram-cancel" id="telegramCancelBtn">إلغاء</button>
         </div>
+    </div>
+
+    <!-- Error Box -->
+    <div class="error-box" id="errorBox">
+        <h3>⚠️ مشكلة في الاتصال</h3>
+        <p id="errorMessage">تعذر تحميل المحتوى. يرجى التأكد من اتصالك بالإنترنت.</p>
+        <button onclick="location.reload()">إعادة المحاولة</button>
     </div>
 
     <div id="loader" class="hidden">
@@ -889,7 +942,7 @@
     <!-- Top Navigation - بدون خلفية -->
     <div class="top-nav" id="topNav">
         <button class="nav-icon-btn" id="searchToggle">
-            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path></svg>
+            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
         </button>
     </div>
 
@@ -897,11 +950,11 @@
     <div class="search-overlay" id="searchOverlay">
         <div class="search-header">
             <button class="search-back-btn" id="searchBackBtn">
-                <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"></path></svg>
+                <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
             </button>
             <div class="search-input-wrap">
                 <input type="text" id="searchOverlayInput" placeholder="ابحث عن فيلم أو مسلسل..." autocomplete="off">
-                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path></svg>
+                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
             </div>
         </div>
         <div class="search-results-area" id="searchResultsArea">
@@ -917,7 +970,7 @@
         <div class="hero-gradient-bottom"></div>
         <div class="hero-content" id="heroContent">
             <div class="hero-badge">
-                <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
+                <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                 مميز
             </div>
             <h1 class="hero-title" id="heroTitle">جاري التحميل...</h1>
@@ -925,7 +978,7 @@
             <p class="hero-desc" id="heroDesc">اكتشف أحدث الأفلام والمسلسلات الحصرية</p>
             <div class="hero-buttons">
                 <button class="hero-btn play" id="heroPlayBtn">
-                    <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
+                    <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                     تشغيل
                 </button>
             </div>
@@ -939,15 +992,15 @@
     <!-- Bottom Navigation -->
     <nav class="bottom-nav">
         <button class="nav-item active" data-tab="movies" id="tabMovies">
-            <svg viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"></path></svg>
+            <svg viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg>
             <span>أفلام</span>
         </button>
         <button class="nav-item" data-tab="series" id="tabSeries">
-            <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"></path></svg>
+            <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
             <span>مسلسلات</span>
         </button>
         <button class="nav-item" data-tab="favorites" id="tabFavorites">
-            <svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg>
+            <svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
             <span>مفضل</span>
         </button>
     </nav>
@@ -956,7 +1009,7 @@
         <div class="episodes-backdrop" id="episodesBackdrop"></div>
         <div class="episodes-sheet">
             <div class="episodes-handle"></div>
-            <button class="episodes-close" id="episodesClose">×</button>
+            <button class="episodes-close" id="episodesClose">&times;</button>
             <div class="episodes-series-header">
                 <img id="episodesPoster" class="episodes-poster" alt="">
                 <div class="episodes-series-info">
@@ -972,7 +1025,7 @@
     <div class="player-modal" id="playerModal">
         <div class="player-header">
             <span class="player-title" id="playerTitle"></span>
-            <button class="close-btn" id="closePlayer">×</button>
+            <button class="close-btn" id="closePlayer">&times;</button>
         </div>
         <div class="video-container" id="artplayerContainer"></div>
     </div>
@@ -1020,6 +1073,8 @@
         const telegramCancelBtn = document.getElementById('telegramCancelBtn');
         const topNav = document.getElementById('topNav');
         const heroSection = document.getElementById('heroSection');
+        const errorBox = document.getElementById('errorBox');
+        const errorMessage = document.getElementById('errorMessage');
 
         // Search Overlay Variables
         const searchOverlay = document.getElementById('searchOverlay');
@@ -1031,7 +1086,7 @@
         window.addEventListener('error', e => console.error("Global error:", e.message));
 
         function escapeHtml(s) {
-            return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&','<':'<','>':'>','"':'"',"'":''' }[c]));
+            return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
         }
 
         function getCacheRaw() {
@@ -1273,9 +1328,19 @@
         let silentRetryTimer = null;
         let retryDelay = 2000;
         let usedEarlyFetch = false;
+        let loadAttempts = 0;
+        const MAX_LOAD_ATTEMPTS = 3;
+
+        function showError(msg) {
+            console.error('Error:', msg);
+            errorMessage.textContent = msg;
+            errorBox.classList.add('show');
+            loader.classList.add('hidden');
+        }
 
         async function fetchData() {
             clearTimeout(silentRetryTimer);
+            loadAttempts++;
 
             const cached = getCacheRaw();
             const hasCache = cached && ((cached.movies && cached.movies.length) || (cached.series && cached.series.length));
@@ -1286,7 +1351,7 @@
                 loader.classList.add('hidden');
                 requestAnimationFrame(() => { renderContent(true); });
             } else {
-                loader.classList.add('hidden');
+                loader.classList.remove('hidden');
             }
 
             const useEarly = !usedEarlyFetch && window.__early;
@@ -1294,11 +1359,16 @@
 
             let mSuccess = false;
             let sSuccess = false;
+            let lastError = null;
 
             const moviesPromise = (
                 (useEarly && window.__early.movies)
                     ? window.__early.movies
-                    : fetchRaw(buildApiUrl('get_vod_streams')).catch(() => null)
+                    : fetchRaw(buildApiUrl('get_vod_streams')).catch((err) => { 
+                        console.error('Movies fetch error:', err);
+                        lastError = err;
+                        return null; 
+                    })
             ).then(text => {
                 const data = text ? (function(){ try { return safeParseResponse(text); } catch(e){ return null; } })() : null;
                 if (Array.isArray(data) && data.length) {
@@ -1313,12 +1383,19 @@
                 } else if (Array.isArray(data)) {
                     mSuccess = true;
                 }
-            }).catch(() => {});
+            }).catch((err) => { 
+                console.error('Movies parse error:', err);
+                lastError = err;
+            });
 
             const seriesPromise = (
                 (useEarly && window.__early.series)
                     ? window.__early.series
-                    : fetchRaw(buildApiUrl('get_series')).catch(() => null)
+                    : fetchRaw(buildApiUrl('get_series')).catch((err) => { 
+                        console.error('Series fetch error:', err);
+                        lastError = err;
+                        return null; 
+                    })
             ).then(text => {
                 const data = text ? (function(){ try { return safeParseResponse(text); } catch(e){ return null; } })() : null;
                 if (Array.isArray(data) && data.length) {
@@ -1348,15 +1425,30 @@
                 } else if (Array.isArray(data)) {
                     sSuccess = true;
                 }
-            }).catch(() => {});
+            }).catch((err) => { 
+                console.error('Series parse error:', err);
+                lastError = err;
+            });
 
             await Promise.allSettled([moviesPromise, seriesPromise]);
 
-            if (!mSuccess && !sSuccess && !hasCache) {
-                retryDelay = Math.min(retryDelay * 1.5, 20000);
-                silentRetryTimer = setTimeout(fetchData, retryDelay);
+            if (!mSuccess && !sSuccess) {
+                if (hasCache) {
+                    // Use cache but show warning
+                    console.warn('Using cached data due to fetch failure');
+                } else if (loadAttempts < MAX_LOAD_ATTEMPTS) {
+                    retryDelay = Math.min(retryDelay * 1.5, 20000);
+                    silentRetryTimer = setTimeout(fetchData, retryDelay);
+                } else {
+                    // Show error after max attempts
+                    const errorMsg = lastError && lastError.message.includes('CORS') 
+                        ? 'مشكلة في الاتصال بالسيرفر. قد يكون السبب سياسة CORS أو أن السيرفر يستخدم HTTP بينما الموقع HTTPS.'
+                        : 'تعذر تحميل المحتوى. يرجى التحقق من اتصالك بالإنترنت أو المحاولة لاحقاً.';
+                    showError(errorMsg);
+                }
             } else if (mSuccess || sSuccess) {
                 retryDelay = 2000;
+                loader.classList.add('hidden');
             }
         }
 
@@ -1388,6 +1480,7 @@
                         ? 'لا توجد عناصر في المفضلة. اضغط على النجمة  لإضافة عنصر'
                         : 'لا توجد نتائج مطابقة';
                     contentContainer.innerHTML = `<div class="no-results">${msg}</div>`;
+                    loader.classList.add('hidden');
                     return;
                 }
 
@@ -1399,6 +1492,7 @@
                 }
 
                 renderSections(items);
+                loader.classList.add('hidden');
             }
         }
 
@@ -1425,7 +1519,7 @@
                 { title: 'الأكثر رواجاً 🔥', items: items.slice(0, 20) },
                 { title: 'أضيف حديثاً ', items: items.slice(20, 50) },
                 { title: 'موصى به لك 💫', items: items.slice(50, 100) },
-                { title: 'استكشف المزيد 🎬', items: items.slice(100) }
+                { title: 'استكشف المزيد ', items: items.slice(100) }
             ];
 
             sections.forEach((section, idx) => {
@@ -1468,7 +1562,7 @@
 
                 const ph = document.createElement('div');
                 ph.className = 'card-placeholder';
-                ph.innerHTML = `<svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"></path></svg><span>${escapeHtml(title)}</span>`;
+                ph.innerHTML = `<svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg><span>${escapeHtml(title)}</span>`;
 
                 if (posterUrl && posterUrl.startsWith('http')) {
                     const img = document.createElement('img');
@@ -1487,7 +1581,7 @@
                 // Favorite Star Button
                 const favBtn = document.createElement('button');
                 favBtn.className = 'favorite-btn' + (isFavorite(item) ? ' active' : '');
-                favBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg>`;
+                favBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`;
                 favBtn.onclick = (e) => {
                     e.stopPropagation();
                     const added = toggleFavorite(item);
@@ -1499,7 +1593,7 @@
                 
                 const playIcon = document.createElement('div');
                 playIcon.className = 'card-play-icon';
-                playIcon.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>`;
+                playIcon.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
                 wrapper.appendChild(playIcon);
                 
                 wrapper.appendChild(ph);
