@@ -889,7 +889,7 @@
         </div>
     </div>
 
-    <div id="loader">
+    <div id="loader" class="hidden">
         <div class="spinner"></div>
         <p id="loaderText">جاري تحميل المحتوى...</p>
     </div>
@@ -1008,7 +1008,9 @@
             favorites: [],
             scrollObserver: null,
             apiError: false,
-            contentReady: false
+            contentReady: false,
+            isLoadingMore: false,
+            currentGrid: null
         };
 
         const loader = document.getElementById('loader');
@@ -1034,6 +1036,13 @@
         const searchHint = document.getElementById('searchHint');
 
         window.addEventListener('error', e => console.error("Global error:", e.message));
+
+        // إخفاء اللودر فوراً عند بدء التطبيق
+        setTimeout(() => {
+            if (!state.contentReady) {
+                loader.classList.add('hidden');
+            }
+        }, 500);
 
         function escapeHtml(s) {
             return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
@@ -1295,8 +1304,9 @@
             if (hasCache) {
                 state.movies = cached.movies || [];
                 state.series = cached.series || [];
-                loader.classList.add('hidden');
                 firstContentShown = true;
+                state.contentReady = true;
+                loader.classList.add('hidden');
                 requestAnimationFrame(() => { renderContent(true); });
             }
 
@@ -1321,6 +1331,7 @@
                     
                     if (!firstContentShown) {
                         firstContentShown = true;
+                        state.contentReady = true;
                         loader.classList.add('hidden');
                         requestAnimationFrame(() => renderContent(true));
                     } else if (changed) {
@@ -1364,6 +1375,7 @@
                     
                     if (!firstContentShown) {
                         firstContentShown = true;
+                        state.contentReady = true;
                         loader.classList.add('hidden');
                         requestAnimationFrame(() => renderContent(true));
                     } else if (changed) {
@@ -1381,6 +1393,7 @@
 
             if (!firstContentShown) {
                 firstContentShown = true;
+                state.contentReady = true;
                 loader.classList.add('hidden');
                 requestAnimationFrame(() => renderContent(true));
             }
@@ -1395,10 +1408,13 @@
 
         function renderContent(reset = false) {
             if (reset) {
+                // إيقاف أي observer سابق
                 if (state.scrollObserver) {
                     state.scrollObserver.disconnect();
                     state.scrollObserver = null;
                 }
+                state.isLoadingMore = false;
+                state.renderedCount = 0;
 
                 if (state.currentTab === 'favorites') {
                     heroSection.style.display = 'none';
@@ -1417,7 +1433,6 @@
                 }
 
                 state.filteredItems = items;
-                state.renderedCount = 0;
                 contentContainer.innerHTML = '';
 
                 if (items.length === 0) {
@@ -1468,6 +1483,7 @@
                 
                 renderBatch(grid, items.slice(0, 10), 0);
                 state.renderedCount = Math.min(10, items.length);
+                state.currentGrid = grid;
                 
                 if (items.length > 10) {
                     setupInfiniteScroll(grid, items);
@@ -1489,6 +1505,7 @@
             
             renderBatch(grid, items.slice(0, 10), 0);
             state.renderedCount = Math.min(10, items.length);
+            state.currentGrid = grid;
             
             if (items.length > 10) {
                 setupInfiniteScroll(grid, items);
@@ -1496,46 +1513,55 @@
         }
 
         function setupInfiniteScroll(grid, items) {
+            // إيقاف أي observer سابق
             if (state.scrollObserver) {
                 state.scrollObserver.disconnect();
+                state.scrollObserver = null;
             }
-            
-            const sentinel = document.createElement('div');
-            sentinel.className = 'scroll-sentinel';
-            sentinel.style.height = '40px';
-            sentinel.style.display = 'flex';
-            sentinel.style.alignItems = 'center';
-            sentinel.style.justifyContent = 'center';
-            sentinel.style.padding = '10px 0';
-            
-            const spinner = document.createElement('div');
-            spinner.className = 'spinner';
-            spinner.style.width = '30px';
-            spinner.style.height = '30px';
-            spinner.style.borderWidth = '3px';
-            sentinel.appendChild(spinner);
-            
-            grid.appendChild(sentinel);
 
+            // استخدام rootMargin كبير جداً لضمان الاكتشاف المبكر
             state.scrollObserver = new IntersectionObserver((entries) => {
-                if (entries[0].isIntersecting) {
+                if (entries[0].isIntersecting && !state.isLoadingMore) {
+                    state.isLoadingMore = true;
+                    
                     const startIndex = state.renderedCount;
                     const nextBatch = items.slice(startIndex, startIndex + 10);
                     
                     if (nextBatch.length > 0) {
-                        renderBatch(grid, nextBatch, startIndex);
-                        state.renderedCount += nextBatch.length;
-                    }
-                    
-                    if (state.renderedCount >= items.length) {
-                        state.scrollObserver.disconnect();
-                        state.scrollObserver = null;
-                        sentinel.remove();
+                        // استخدام requestAnimationFrame لضمان عدم تجميد الواجهة
+                        requestAnimationFrame(() => {
+                            renderBatch(grid, nextBatch, startIndex);
+                            state.renderedCount += nextBatch.length;
+                            state.isLoadingMore = false;
+                            
+                            // إعادة ربط الـ observer بآخر عنصر جديد
+                            observeLastCard(grid, items);
+                        });
+                    } else {
+                        state.isLoadingMore = false;
+                        if (state.scrollObserver) {
+                            state.scrollObserver.disconnect();
+                            state.scrollObserver = null;
+                        }
                     }
                 }
-            }, { rootMargin: '300px', threshold: 0.1 });
+            }, { 
+                rootMargin: '800px',
+                threshold: 0.1
+            });
+
+            // مراقبة آخر بطاقة بدلاً من sentinel
+            observeLastCard(grid, items);
+        }
+
+        function observeLastCard(grid, items) {
+            if (!state.scrollObserver) return;
             
-            state.scrollObserver.observe(sentinel);
+            const cards = grid.querySelectorAll('.card');
+            if (cards.length > 0) {
+                const lastCard = cards[cards.length - 1];
+                state.scrollObserver.observe(lastCard);
+            }
         }
 
         function renderBatch(grid, items, startIndex) {
