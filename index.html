@@ -60,7 +60,6 @@
             overflow-x: hidden;
             padding-bottom: calc(var(--nav-height) + 20px);
             -webkit-font-smoothing: antialiased;
-            touch-action: pan-y; /* تحسين سلاسة التمرير العمودي على الجوال */
         }
         
         @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
@@ -127,7 +126,6 @@
             background-repeat: no-repeat;
             transform: scale(1.05);
             transition: opacity 1s ease, transform 8s ease;
-            will-change: opacity, transform; /* تحسين أداء الأنيميشن */
         }
         .hero-backdrop.fading {
             opacity: 0;
@@ -140,7 +138,6 @@
             height: 120px;
             background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%);
             z-index: 2;
-            pointer-events: none;
         }
         .hero-gradient-bottom {
             position: absolute;
@@ -150,7 +147,6 @@
             height: 70%;
             background: linear-gradient(0deg, #000 0%, rgba(0,0,0,0.85) 30%, rgba(0,0,0,0.4) 60%, transparent 100%);
             z-index: 2;
-            pointer-events: none;
         }
         .hero-content {
             position: absolute;
@@ -338,7 +334,6 @@
             flex: 1;
             overflow-y: auto;
             padding-bottom: 80px;
-            -webkit-overflow-scrolling: touch; /* تمرير سلس على iOS */
         }
         .search-hint {
             text-align: center;
@@ -388,16 +383,13 @@
             animation: fadeUp 0.3s ease backwards;
             content-visibility: auto;
             contain-intrinsic-size: auto 240px;
-            will-change: transform; /* تحسين أداء الحركة */
-            transform: translateZ(0); /* إجبار المتصفح على استخدام كرت الشاشة */
-            backface-visibility: hidden;
         }
         .card:hover { 
-            transform: scale(1.08) translateZ(0); 
+            transform: scale(1.08); 
             z-index: 10;
             box-shadow: 0 12px 32px rgba(0,0,0,0.8);
         }
-        .card:active { transform: scale(0.98) translateZ(0); }
+        .card:active { transform: scale(0.98); }
 
         .poster-wrapper {
             position: relative; width: 100%; aspect-ratio: 2/3;
@@ -724,7 +716,6 @@
             transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
             overflow-y: auto;
             box-shadow: 0 -12px 48px rgba(0,0,0,0.9);
-            -webkit-overflow-scrolling: touch;
         }
         .episodes-modal.active .episodes-sheet { transform: translateY(0); }
         .episodes-handle {
@@ -768,7 +759,6 @@
             padding: 4px 0 12px;
             margin-bottom: 8px;
             scrollbar-width: none;
-            -webkit-overflow-scrolling: touch;
         }
         .seasons-tabs::-webkit-scrollbar { display: none; }
         .season-tab {
@@ -1352,7 +1342,6 @@
 
         function renderContent(reset = false) {
             if (reset) {
-                // تنظيف المراقب القديم لمنع تسرب الذاكرة وتحسين السلاسة
                 if (state.scrollObserver) {
                     state.scrollObserver.disconnect();
                     state.scrollObserver = null;
@@ -1478,7 +1467,7 @@
                         sentinel.remove();
                     }
                 }
-            }, { rootMargin: '300px', threshold: 0.1 });
+            }, { rootMargin: '300px' });
             
             state.scrollObserver.observe(sentinel);
         }
@@ -1490,9 +1479,6 @@
                 const card = document.createElement('div');
                 card.className = 'card';
                 card.style.animationDelay = Math.min(i * 30, 300) + 'ms';
-                // تخزين البيانات في العنصر لتفادي البحث المتكرر وتحسين الأداء
-                card.dataset.id = item.stream_id || item.series_id;
-                card.dataset.type = item.stream_id ? 'movie' : 'series';
 
                 const title = item.name || 'بدون عنوان';
                 const rating = item.rating || item.rating_imdb || '';
@@ -1510,7 +1496,7 @@
                     const img = document.createElement('img');
                     img.className = 'card-poster';
                     img.loading = 'lazy';
-                    img.decoding = 'async'; // تحسين أداء فك تشفير الصورة
+                    img.decoding = 'async';
                     img.fetchPriority = i < 4 ? 'high' : 'low';
                     img.src = posterUrl;
                     img.alt = title;
@@ -1522,20 +1508,14 @@
                 
                 const favBtn = document.createElement('button');
                 favBtn.className = 'favorite-btn' + (isFavorite(item) ? ' active' : '');
-                favBtn.dataset.id = item.stream_id || item.series_id;
-                favBtn.dataset.type = item.stream_id ? 'movie' : 'series';
                 favBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg>`;
-                
-                const handleFavClick = (e) => {
+                favBtn.onclick = (e) => {
                     e.stopPropagation();
                     const added = toggleFavorite(item);
                     favBtn.classList.toggle('active', added);
                     favBtn.classList.add('pop');
                     setTimeout(() => favBtn.classList.remove('pop'), 400);
                 };
-                favBtn.onclick = handleFavClick;
-                favBtn.addEventListener('touchstart', handleFavClick, { passive: true });
-                
                 wrapper.appendChild(favBtn);
                 
                 const playIcon = document.createElement('div');
@@ -1565,11 +1545,10 @@
                 card.appendChild(wrapper);
                 card.appendChild(info);
 
-                const handleCardClick = () => {
+                card.addEventListener('click', () => {
                     if (item.stream_id) openPlayer(item);
                     else if (item.series_id) openSeriesPlayer(item);
-                };
-                card.addEventListener('click', handleCardClick);
+                });
 
                 fragment.appendChild(card);
             });
@@ -1832,21 +1811,13 @@
         searchToggle.addEventListener('click', openSearchOverlay);
         searchBackBtn.addEventListener('click', closeSearchOverlay);
 
-        // تحسين أداء مستمع التمرير باستخدام requestAnimationFrame و passive: true
-        let isTicking = false;
         window.addEventListener('scroll', () => {
-            if (!isTicking) {
-                window.requestAnimationFrame(() => {
-                    if (window.scrollY > 100) {
-                        topNav.classList.add('scrolled');
-                    } else {
-                        topNav.classList.remove('scrolled');
-                    }
-                    isTicking = false;
-                });
-                isTicking = true;
+            if (window.scrollY > 100) {
+                topNav.classList.add('scrolled');
+            } else {
+                topNav.classList.remove('scrolled');
             }
-        }, { passive: true });
+        });
 
         function showTelegramModal() {
             setTimeout(() => {
