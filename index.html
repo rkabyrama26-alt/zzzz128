@@ -1038,11 +1038,14 @@
 
         window.addEventListener('error', e => console.error("Global error:", e.message));
 
+        // ✅ تحسين: إخفاء اللودر بسرعة أكبر (200ms بدلاً من 500ms)
         setTimeout(() => {
             if (!state.contentReady) {
                 loader.classList.add('hidden');
+                // عرض هيكل الصفحة فوراً
+                renderContent(true);
             }
-        }, 500);
+        }, 200);
 
         function escapeHtml(s) {
             return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
@@ -1301,13 +1304,14 @@
             const cached = getCacheRaw();
             const hasCache = cached && ((cached.movies && cached.movies.length) || (cached.series && cached.series.length));
 
-            // في الوضع الصامت: لا نعيد رسم الكاش لأن الواجهة محمّلة أصلاً
+            // ✅ تحسين: استخدام الكاش فوراً دون انتظار
             if (hasCache && !silent) {
                 state.movies = cached.movies || [];
                 state.series = cached.series || [];
                 firstContentShown = true;
                 state.contentReady = true;
                 loader.classList.add('hidden');
+                // ✅ تحسين: استخدام requestAnimationFrame لعرض أسرع
                 requestAnimationFrame(() => { renderContent(true); });
             }
 
@@ -1336,7 +1340,6 @@
                         loader.classList.add('hidden');
                         requestAnimationFrame(() => renderContent(true));
                     } else if (changed) {
-                        // في الوضع الصامت: حدّث الواجهة فقط إذا كان المستخدم في الأعلى
                         if (!silent || window.scrollY < 300) {
                             requestAnimationFrame(() => renderContent(true));
                         }
@@ -1498,7 +1501,7 @@
             
             const sectionEl = document.createElement('div');
             sectionEl.className = 'content-section';
-            const title = state.currentTab === 'movies' ? 'أحدث الأفلام 🎬' : 'أحدث المسلسلات 📺';
+            const title = state.currentTab === 'movies' ? 'أحدث الأفلام ' : 'أحدث المسلسلات ';
             sectionEl.innerHTML = `<h2 class="section-title">${title}</h2>`;
             
             const grid = document.createElement('div');
@@ -1569,7 +1572,8 @@
             items.forEach((item, i) => {
                 const card = document.createElement('div');
                 card.className = 'card';
-                card.style.animationDelay = Math.min(i * 30, 300) + 'ms';
+                // ✅ تحسين: تقليل التأخير في الأنيميشن
+                card.style.animationDelay = Math.min(i * 20, 200) + 'ms';
                 card.dataset.id = item.stream_id || item.series_id;
                 card.dataset.type = item.stream_id ? 'movie' : 'series';
 
