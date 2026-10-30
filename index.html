@@ -19,8 +19,8 @@
         try {
             var base = 'http://clsmarview.club:2082/player_api.php?username=17954823&password=91459788';
             window.__early = {
-                movies: fetch(base + '&action=get_vod_streams').then(function(r){ return r.ok ? r.text() : null; }).catch(function(){ return null; }),
-                series: fetch(base + '&action=get_series').then(function(r){ return r.ok ? r.text() : null; }).catch(function(){ return null; })
+                movies: fetch(base + '&action=get_vod_streams', { mode: 'cors' }).then(function(r){ return r.ok ? r.text() : null; }).catch(function(){ return null; }),
+                series: fetch(base + '&action=get_series', { mode: 'cors' }).then(function(r){ return r.ok ? r.text() : null; }).catch(function(){ return null; })
             };
         } catch(e) { window.__early = {}; }
     })();
@@ -60,6 +60,7 @@
             overflow-x: hidden;
             padding-bottom: calc(var(--nav-height) + 20px);
             -webkit-font-smoothing: antialiased;
+            touch-action: pan-y;
         }
         
         @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
@@ -126,6 +127,7 @@
             background-repeat: no-repeat;
             transform: scale(1.05);
             transition: opacity 1s ease, transform 8s ease;
+            will-change: opacity, transform;
         }
         .hero-backdrop.fading {
             opacity: 0;
@@ -138,6 +140,7 @@
             height: 120px;
             background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%);
             z-index: 2;
+            pointer-events: none;
         }
         .hero-gradient-bottom {
             position: absolute;
@@ -147,6 +150,7 @@
             height: 70%;
             background: linear-gradient(0deg, #000 0%, rgba(0,0,0,0.85) 30%, rgba(0,0,0,0.4) 60%, transparent 100%);
             z-index: 2;
+            pointer-events: none;
         }
         .hero-content {
             position: absolute;
@@ -334,6 +338,7 @@
             flex: 1;
             overflow-y: auto;
             padding-bottom: 80px;
+            -webkit-overflow-scrolling: touch;
         }
         .search-hint {
             text-align: center;
@@ -383,13 +388,16 @@
             animation: fadeUp 0.3s ease backwards;
             content-visibility: auto;
             contain-intrinsic-size: auto 240px;
+            will-change: transform;
+            transform: translateZ(0);
+            backface-visibility: hidden;
         }
         .card:hover { 
-            transform: scale(1.08); 
+            transform: scale(1.08) translateZ(0); 
             z-index: 10;
             box-shadow: 0 12px 32px rgba(0,0,0,0.8);
         }
-        .card:active { transform: scale(0.98); }
+        .card:active { transform: scale(0.98) translateZ(0); }
 
         .poster-wrapper {
             position: relative; width: 100%; aspect-ratio: 2/3;
@@ -716,6 +724,7 @@
             transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
             overflow-y: auto;
             box-shadow: 0 -12px 48px rgba(0,0,0,0.9);
+            -webkit-overflow-scrolling: touch;
         }
         .episodes-modal.active .episodes-sheet { transform: translateY(0); }
         .episodes-handle {
@@ -759,6 +768,7 @@
             padding: 4px 0 12px;
             margin-bottom: 8px;
             scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
         }
         .seasons-tabs::-webkit-scrollbar { display: none; }
         .season-tab {
@@ -846,6 +856,18 @@
             text-align: center;
             padding: 60px 20px; color: var(--text-secondary);
             font-size: 0.95rem; font-weight: 600;
+        }
+        
+        /* Error message styling */
+        .error-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--netflix-red);
+            font-size: 1rem;
+            font-weight: 600;
+            background: rgba(229, 9, 20, 0.1);
+            border-radius: 8px;
+            margin: 20px 16px;
         }
     </style>
 </head>
@@ -985,7 +1007,8 @@
             heroIndex: 0,
             heroTimer: null,
             favorites: [],
-            scrollObserver: null
+            scrollObserver: null,
+            apiError: false
         };
 
         const loader = document.getElementById('loader');
@@ -1137,12 +1160,19 @@
             const controller = new AbortController();
             const timer = setTimeout(() => controller.abort(), timeoutMs || CONFIG.timeoutMs);
             try {
-                const res = await fetch(url, { signal: controller.signal });
+                const res = await fetch(url, { 
+                    signal: controller.signal,
+                    mode: 'cors',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
                 clearTimeout(timer);
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 return await res.text();
             } catch (e) {
                 clearTimeout(timer);
+                console.error('Fetch error:', e);
                 throw e;
             }
         }
@@ -1256,6 +1286,7 @@
 
         async function fetchData() {
             clearTimeout(silentRetryTimer);
+            state.apiError = false;
 
             const cached = getCacheRaw();
             const hasCache = cached && ((cached.movies && cached.movies.length) || (cached.series && cached.series.length));
@@ -1293,7 +1324,10 @@
                 } else if (Array.isArray(data)) {
                     mSuccess = true;
                 }
-            }).catch(() => {});
+            }).catch((err) => {
+                console.error('Movies fetch error:', err);
+                state.apiError = true;
+            });
 
             const seriesPromise = (
                 (useEarly && window.__early.series)
@@ -1328,7 +1362,10 @@
                 } else if (Array.isArray(data)) {
                     sSuccess = true;
                 }
-            }).catch(() => {});
+            }).catch((err) => {
+                console.error('Series fetch error:', err);
+                state.apiError = true;
+            });
 
             await Promise.allSettled([moviesPromise, seriesPromise]);
 
@@ -1338,6 +1375,8 @@
             } else if (mSuccess || sSuccess) {
                 retryDelay = 2000;
             }
+            
+            loader.classList.add('hidden');
         }
 
         function renderContent(reset = false) {
@@ -1368,10 +1407,23 @@
                 contentContainer.innerHTML = '';
 
                 if (items.length === 0) {
-                    const msg = state.currentTab === 'favorites' 
-                        ? 'لا توجد عناصر في المفضلة. اضغط على النجمة لإضافة عنصر'
-                        : 'لا توجد نتائج مطابقة';
-                    contentContainer.innerHTML = `<div class="no-results">${msg}</div>`;
+                    if (state.apiError) {
+                        contentContainer.innerHTML = `
+                            <div class="error-message">
+                                ⚠️ تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت أو حاول لاحقاً
+                            </div>
+                            <div class="no-results">
+                                ${state.currentTab === 'favorites' 
+                                    ? 'لا توجد عناصر في المفضلة. اضغط على النجمة لإضافة عنصر'
+                                    : 'لا توجد نتائج مطابقة'}
+                            </div>
+                        `;
+                    } else {
+                        const msg = state.currentTab === 'favorites' 
+                            ? 'لا توجد عناصر في المفضلة. اضغط على النجمة لإضافة عنصر'
+                            : 'لا توجد نتائج مطابقة';
+                        contentContainer.innerHTML = `<div class="no-results">${msg}</div>`;
+                    }
                     return;
                 }
 
@@ -1467,7 +1519,7 @@
                         sentinel.remove();
                     }
                 }
-            }, { rootMargin: '300px' });
+            }, { rootMargin: '300px', threshold: 0.1 });
             
             state.scrollObserver.observe(sentinel);
         }
@@ -1479,6 +1531,8 @@
                 const card = document.createElement('div');
                 card.className = 'card';
                 card.style.animationDelay = Math.min(i * 30, 300) + 'ms';
+                card.dataset.id = item.stream_id || item.series_id;
+                card.dataset.type = item.stream_id ? 'movie' : 'series';
 
                 const title = item.name || 'بدون عنوان';
                 const rating = item.rating || item.rating_imdb || '';
@@ -1508,14 +1562,20 @@
                 
                 const favBtn = document.createElement('button');
                 favBtn.className = 'favorite-btn' + (isFavorite(item) ? ' active' : '');
+                favBtn.dataset.id = item.stream_id || item.series_id;
+                favBtn.dataset.type = item.stream_id ? 'movie' : 'series';
                 favBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg>`;
-                favBtn.onclick = (e) => {
+                
+                const handleFavClick = (e) => {
                     e.stopPropagation();
                     const added = toggleFavorite(item);
                     favBtn.classList.toggle('active', added);
                     favBtn.classList.add('pop');
                     setTimeout(() => favBtn.classList.remove('pop'), 400);
                 };
+                favBtn.onclick = handleFavClick;
+                favBtn.addEventListener('touchstart', handleFavClick, { passive: true });
+                
                 wrapper.appendChild(favBtn);
                 
                 const playIcon = document.createElement('div');
@@ -1545,10 +1605,11 @@
                 card.appendChild(wrapper);
                 card.appendChild(info);
 
-                card.addEventListener('click', () => {
+                const handleCardClick = () => {
                     if (item.stream_id) openPlayer(item);
                     else if (item.series_id) openSeriesPlayer(item);
-                });
+                };
+                card.addEventListener('click', handleCardClick);
 
                 fragment.appendChild(card);
             });
@@ -1811,13 +1872,20 @@
         searchToggle.addEventListener('click', openSearchOverlay);
         searchBackBtn.addEventListener('click', closeSearchOverlay);
 
+        let isTicking = false;
         window.addEventListener('scroll', () => {
-            if (window.scrollY > 100) {
-                topNav.classList.add('scrolled');
-            } else {
-                topNav.classList.remove('scrolled');
+            if (!isTicking) {
+                window.requestAnimationFrame(() => {
+                    if (window.scrollY > 100) {
+                        topNav.classList.add('scrolled');
+                    } else {
+                        topNav.classList.remove('scrolled');
+                    }
+                    isTicking = false;
+                });
+                isTicking = true;
             }
-        });
+        }, { passive: true });
 
         function showTelegramModal() {
             setTimeout(() => {
