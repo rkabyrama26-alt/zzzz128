@@ -988,7 +988,8 @@
             maxItems: 900,
             timeoutMs: 8000,
             itemsPerPage: 10,
-            heroInterval: 6000
+            heroInterval: 6000,
+            autoRefreshMs: 60000
         };
 
         const CACHE_KEY = 'iptv_cache_v6';
@@ -1037,7 +1038,6 @@
 
         window.addEventListener('error', e => console.error("Global error:", e.message));
 
-        // إخفاء اللودر فوراً عند بدء التطبيق
         setTimeout(() => {
             if (!state.contentReady) {
                 loader.classList.add('hidden');
@@ -1294,14 +1294,15 @@
         let usedEarlyFetch = false;
         let firstContentShown = false;
 
-        async function fetchData() {
+        async function fetchData(silent = false) {
             clearTimeout(silentRetryTimer);
             state.apiError = false;
 
             const cached = getCacheRaw();
             const hasCache = cached && ((cached.movies && cached.movies.length) || (cached.series && cached.series.length));
 
-            if (hasCache) {
+            // في الوضع الصامت: لا نعيد رسم الكاش لأن الواجهة محمّلة أصلاً
+            if (hasCache && !silent) {
                 state.movies = cached.movies || [];
                 state.series = cached.series || [];
                 firstContentShown = true;
@@ -1335,7 +1336,10 @@
                         loader.classList.add('hidden');
                         requestAnimationFrame(() => renderContent(true));
                     } else if (changed) {
-                        requestAnimationFrame(() => renderContent(true));
+                        // في الوضع الصامت: حدّث الواجهة فقط إذا كان المستخدم في الأعلى
+                        if (!silent || window.scrollY < 300) {
+                            requestAnimationFrame(() => renderContent(true));
+                        }
                     }
                 } else if (Array.isArray(data)) {
                     mSuccess = true;
@@ -1379,7 +1383,9 @@
                         loader.classList.add('hidden');
                         requestAnimationFrame(() => renderContent(true));
                     } else if (changed) {
-                        requestAnimationFrame(() => renderContent(true));
+                        if (!silent || window.scrollY < 300) {
+                            requestAnimationFrame(() => renderContent(true));
+                        }
                     }
                 } else if (Array.isArray(data)) {
                     sSuccess = true;
@@ -1408,7 +1414,6 @@
 
         function renderContent(reset = false) {
             if (reset) {
-                // إيقاف أي observer سابق
                 if (state.scrollObserver) {
                     state.scrollObserver.disconnect();
                     state.scrollObserver = null;
@@ -1513,13 +1518,11 @@
         }
 
         function setupInfiniteScroll(grid, items) {
-            // إيقاف أي observer سابق
             if (state.scrollObserver) {
                 state.scrollObserver.disconnect();
                 state.scrollObserver = null;
             }
 
-            // استخدام rootMargin كبير جداً لضمان الاكتشاف المبكر
             state.scrollObserver = new IntersectionObserver((entries) => {
                 if (entries[0].isIntersecting && !state.isLoadingMore) {
                     state.isLoadingMore = true;
@@ -1528,13 +1531,10 @@
                     const nextBatch = items.slice(startIndex, startIndex + 10);
                     
                     if (nextBatch.length > 0) {
-                        // استخدام requestAnimationFrame لضمان عدم تجميد الواجهة
                         requestAnimationFrame(() => {
                             renderBatch(grid, nextBatch, startIndex);
                             state.renderedCount += nextBatch.length;
                             state.isLoadingMore = false;
-                            
-                            // إعادة ربط الـ observer بآخر عنصر جديد
                             observeLastCard(grid, items);
                         });
                     } else {
@@ -1550,7 +1550,6 @@
                 threshold: 0.1
             });
 
-            // مراقبة آخر بطاقة بدلاً من sentinel
             observeLastCard(grid, items);
         }
 
@@ -1991,6 +1990,19 @@
 
         loadFavorites();
         fetchData();
+
+        // ✅ التحديث التلقائي: كل 60 ثانية يعيد جلب المحتوى من السيرفر ويكتشف أي إضافة/تغيير
+        // - يتوقف أثناء المشاهدة أو فتح نافذة
+        // - لا يعيد الرسم إذا كان المستخدم يمرر لأسفل (لتجنب القفز)
+        setInterval(function() {
+            if (!document.hidden && 
+                !playerModal.classList.contains('active') && 
+                !episodesModal.classList.contains('active') &&
+                !searchOverlay.classList.contains('active') &&
+                !telegramModal.classList.contains('active')) {
+                fetchData(true);
+            }
+        }, CONFIG.autoRefreshMs);
     </script>
 </body>
 </html>
