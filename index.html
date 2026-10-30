@@ -704,52 +704,6 @@
             border-radius: 50%; animation: spin 0.9s linear infinite;
         }
         #loader p { color: var(--text-secondary); font-size: 0.95rem; text-align: center; padding: 0 20px; font-weight: 600; }
-        
-        /* Error Message Box */
-        .error-box {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: var(--surface-2);
-            border: 2px solid var(--netflix-red);
-            border-radius: 12px;
-            padding: 30px 24px;
-            max-width: 90%;
-            width: 400px;
-            text-align: center;
-            z-index: 5000;
-            display: none;
-            box-shadow: 0 16px 48px rgba(0,0,0,0.9);
-        }
-        .error-box.show { display: block; animation: modalFadeIn 0.3s ease; }
-        .error-box h3 {
-            color: var(--netflix-red);
-            font-size: 1.3rem;
-            margin-bottom: 12px;
-            font-weight: 800;
-        }
-        .error-box p {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            line-height: 1.6;
-            margin-bottom: 20px;
-        }
-        .error-box button {
-            background: var(--netflix-red);
-            color: #fff;
-            border: none;
-            padding: 10px 24px;
-            border-radius: 6px;
-            font-family: 'Tajawal', sans-serif;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .error-box button:hover {
-            background: var(--netflix-red-dark);
-            transform: scale(1.05);
-        }
 
         .episodes-modal { position: fixed; inset: 0; z-index: 1500; display: none; }
         .episodes-modal.active { display: block; }
@@ -927,13 +881,6 @@
         </div>
     </div>
 
-    <!-- Error Box -->
-    <div class="error-box" id="errorBox">
-        <h3>⚠️ مشكلة في الاتصال</h3>
-        <p id="errorMessage">تعذر تحميل المحتوى. يرجى التأكد من اتصالك بالإنترنت.</p>
-        <button onclick="location.reload()">إعادة المحاولة</button>
-    </div>
-
     <div id="loader" class="hidden">
         <div class="spinner"></div>
         <p id="loaderText">جاري تحميل المحتوى...</p>
@@ -1032,9 +979,9 @@
 
     <script>
         const CONFIG = {
-            server: 'http://85712.hydas.xyz',
-            username: 'majed2750',
-            password: 'M0533008030',
+            server: 'http://stream.ghosttv.co',
+            username: 'gaofxxvu42',
+            password: 'wkadniywws',
             maxItems: 1000,
             timeoutMs: 15000,
             itemsPerPage: 10,
@@ -1073,8 +1020,6 @@
         const telegramCancelBtn = document.getElementById('telegramCancelBtn');
         const topNav = document.getElementById('topNav');
         const heroSection = document.getElementById('heroSection');
-        const errorBox = document.getElementById('errorBox');
-        const errorMessage = document.getElementById('errorMessage');
 
         // Search Overlay Variables
         const searchOverlay = document.getElementById('searchOverlay');
@@ -1328,19 +1273,9 @@
         let silentRetryTimer = null;
         let retryDelay = 2000;
         let usedEarlyFetch = false;
-        let loadAttempts = 0;
-        const MAX_LOAD_ATTEMPTS = 3;
-
-        function showError(msg) {
-            console.error('Error:', msg);
-            errorMessage.textContent = msg;
-            errorBox.classList.add('show');
-            loader.classList.add('hidden');
-        }
 
         async function fetchData() {
             clearTimeout(silentRetryTimer);
-            loadAttempts++;
 
             const cached = getCacheRaw();
             const hasCache = cached && ((cached.movies && cached.movies.length) || (cached.series && cached.series.length));
@@ -1351,7 +1286,7 @@
                 loader.classList.add('hidden');
                 requestAnimationFrame(() => { renderContent(true); });
             } else {
-                loader.classList.remove('hidden');
+                loader.classList.add('hidden');
             }
 
             const useEarly = !usedEarlyFetch && window.__early;
@@ -1359,16 +1294,11 @@
 
             let mSuccess = false;
             let sSuccess = false;
-            let lastError = null;
 
             const moviesPromise = (
                 (useEarly && window.__early.movies)
                     ? window.__early.movies
-                    : fetchRaw(buildApiUrl('get_vod_streams')).catch((err) => { 
-                        console.error('Movies fetch error:', err);
-                        lastError = err;
-                        return null; 
-                    })
+                    : fetchRaw(buildApiUrl('get_vod_streams')).catch(() => null)
             ).then(text => {
                 const data = text ? (function(){ try { return safeParseResponse(text); } catch(e){ return null; } })() : null;
                 if (Array.isArray(data) && data.length) {
@@ -1383,19 +1313,12 @@
                 } else if (Array.isArray(data)) {
                     mSuccess = true;
                 }
-            }).catch((err) => { 
-                console.error('Movies parse error:', err);
-                lastError = err;
-            });
+            }).catch(() => {});
 
             const seriesPromise = (
                 (useEarly && window.__early.series)
                     ? window.__early.series
-                    : fetchRaw(buildApiUrl('get_series')).catch((err) => { 
-                        console.error('Series fetch error:', err);
-                        lastError = err;
-                        return null; 
-                    })
+                    : fetchRaw(buildApiUrl('get_series')).catch(() => null)
             ).then(text => {
                 const data = text ? (function(){ try { return safeParseResponse(text); } catch(e){ return null; } })() : null;
                 if (Array.isArray(data) && data.length) {
@@ -1425,30 +1348,15 @@
                 } else if (Array.isArray(data)) {
                     sSuccess = true;
                 }
-            }).catch((err) => { 
-                console.error('Series parse error:', err);
-                lastError = err;
-            });
+            }).catch(() => {});
 
             await Promise.allSettled([moviesPromise, seriesPromise]);
 
-            if (!mSuccess && !sSuccess) {
-                if (hasCache) {
-                    // Use cache but show warning
-                    console.warn('Using cached data due to fetch failure');
-                } else if (loadAttempts < MAX_LOAD_ATTEMPTS) {
-                    retryDelay = Math.min(retryDelay * 1.5, 20000);
-                    silentRetryTimer = setTimeout(fetchData, retryDelay);
-                } else {
-                    // Show error after max attempts
-                    const errorMsg = lastError && lastError.message.includes('CORS') 
-                        ? 'مشكلة في الاتصال بالسيرفر. قد يكون السبب سياسة CORS أو أن السيرفر يستخدم HTTP بينما الموقع HTTPS.'
-                        : 'تعذر تحميل المحتوى. يرجى التحقق من اتصالك بالإنترنت أو المحاولة لاحقاً.';
-                    showError(errorMsg);
-                }
+            if (!mSuccess && !sSuccess && !hasCache) {
+                retryDelay = Math.min(retryDelay * 1.5, 20000);
+                silentRetryTimer = setTimeout(fetchData, retryDelay);
             } else if (mSuccess || sSuccess) {
                 retryDelay = 2000;
-                loader.classList.add('hidden');
             }
         }
 
@@ -1480,7 +1388,6 @@
                         ? 'لا توجد عناصر في المفضلة. اضغط على النجمة  لإضافة عنصر'
                         : 'لا توجد نتائج مطابقة';
                     contentContainer.innerHTML = `<div class="no-results">${msg}</div>`;
-                    loader.classList.add('hidden');
                     return;
                 }
 
@@ -1492,7 +1399,6 @@
                 }
 
                 renderSections(items);
-                loader.classList.add('hidden');
             }
         }
 
@@ -1519,7 +1425,7 @@
                 { title: 'الأكثر رواجاً 🔥', items: items.slice(0, 20) },
                 { title: 'أضيف حديثاً ', items: items.slice(20, 50) },
                 { title: 'موصى به لك 💫', items: items.slice(50, 100) },
-                { title: 'استكشف المزيد ', items: items.slice(100) }
+                { title: 'استكشف المزيد 🎬', items: items.slice(100) }
             ];
 
             sections.forEach((section, idx) => {
