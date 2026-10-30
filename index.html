@@ -1038,14 +1038,11 @@
 
         window.addEventListener('error', e => console.error("Global error:", e.message));
 
-        // إخفاء اللودر فوراً وإظهار المحتوى
         setTimeout(() => {
-            loader.classList.add('hidden');
-            // إظهار واجهة فارغة فوراً
             if (!state.contentReady) {
-                renderEmptyInterface();
+                loader.classList.add('hidden');
             }
-        }, 100);
+        }, 500);
 
         function escapeHtml(s) {
             return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
@@ -1304,6 +1301,7 @@
             const cached = getCacheRaw();
             const hasCache = cached && ((cached.movies && cached.movies.length) || (cached.series && cached.series.length));
 
+            // في الوضع الصامت: لا نعيد رسم الكاش لأن الواجهة محمّلة أصلاً
             if (hasCache && !silent) {
                 state.movies = cached.movies || [];
                 state.series = cached.series || [];
@@ -1338,6 +1336,7 @@
                         loader.classList.add('hidden');
                         requestAnimationFrame(() => renderContent(true));
                     } else if (changed) {
+                        // في الوضع الصامت: حدّث الواجهة فقط إذا كان المستخدم في الأعلى
                         if (!silent || window.scrollY < 300) {
                             requestAnimationFrame(() => renderContent(true));
                         }
@@ -1410,46 +1409,6 @@
                 silentRetryTimer = setTimeout(fetchData, retryDelay);
             } else if (mSuccess || sSuccess) {
                 retryDelay = 2000;
-            }
-        }
-
-        function renderEmptyInterface() {
-            // إظهار واجهة فارغة مع skeleton cards
-            contentContainer.innerHTML = '';
-            
-            if (state.currentTab === 'favorites') {
-                heroSection.style.display = 'none';
-                contentContainer.style.paddingTop = '80px';
-                const sectionEl = document.createElement('div');
-                sectionEl.className = 'content-section';
-                sectionEl.innerHTML = `<h2 class="section-title">⭐ مفضلاتي (0)</h2>`;
-                const grid = document.createElement('div');
-                grid.className = 'content-grid';
-                // إضافة skeleton cards
-                for (let i = 0; i < 6; i++) {
-                    const skeleton = document.createElement('div');
-                    skeleton.className = 'skeleton-card';
-                    grid.appendChild(skeleton);
-                }
-                sectionEl.appendChild(grid);
-                contentContainer.appendChild(sectionEl);
-            } else {
-                heroSection.style.display = 'block';
-                contentContainer.style.paddingTop = '0';
-                const sectionEl = document.createElement('div');
-                sectionEl.className = 'content-section';
-                const title = state.currentTab === 'movies' ? 'أحدث الأفلام 🎬' : 'أحدث المسلسلات 📺';
-                sectionEl.innerHTML = `<h2 class="section-title">${title}</h2>`;
-                const grid = document.createElement('div');
-                grid.className = 'content-grid';
-                // إضافة skeleton cards
-                for (let i = 0; i < 6; i++) {
-                    const skeleton = document.createElement('div');
-                    skeleton.className = 'skeleton-card';
-                    grid.appendChild(skeleton);
-                }
-                sectionEl.appendChild(grid);
-                contentContainer.appendChild(sectionEl);
             }
         }
 
