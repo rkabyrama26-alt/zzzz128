@@ -19,8 +19,8 @@
         try {
             var base = 'http://clsmarview.club:2082/player_api.php?username=17954823&password=91459788';
             window.__early = {
-                movies: fetch(base + '&action=get_vod_streams', { mode: 'cors' }).then(function(r){ return r.ok ? r.text() : null; }).catch(function(){ return null; }),
-                series: fetch(base + '&action=get_series', { mode: 'cors' }).then(function(r){ return r.ok ? r.text() : null; }).catch(function(){ return null; })
+                movies: fetch(base + '&action=get_vod_streams', { mode: 'cors', cache: 'no-store' }).then(function(r){ return r.ok ? r.text() : null; }).catch(function(){ return null; }),
+                series: fetch(base + '&action=get_series', { mode: 'cors', cache: 'no-store' }).then(function(r){ return r.ok ? r.text() : null; }).catch(function(){ return null; })
             };
         } catch(e) { window.__early = {}; }
     })();
@@ -858,7 +858,6 @@
             font-size: 0.95rem; font-weight: 600;
         }
         
-        /* Error message styling */
         .error-message {
             text-align: center;
             padding: 40px 20px;
@@ -890,7 +889,7 @@
         </div>
     </div>
 
-    <div id="loader" class="hidden">
+    <div id="loader">
         <div class="spinner"></div>
         <p id="loaderText">جاري تحميل المحتوى...</p>
     </div>
@@ -986,8 +985,8 @@
             server: 'http://clsmarview.club:2082',
             username: '17954823',
             password: '91459788',
-            maxItems: 600,
-            timeoutMs: 15000,
+            maxItems: 900,
+            timeoutMs: 8000,
             itemsPerPage: 10,
             heroInterval: 6000
         };
@@ -1008,7 +1007,8 @@
             heroTimer: null,
             favorites: [],
             scrollObserver: null,
-            apiError: false
+            apiError: false,
+            contentReady: false
         };
 
         const loader = document.getElementById('loader');
@@ -1283,6 +1283,7 @@
         let silentRetryTimer = null;
         let retryDelay = 2000;
         let usedEarlyFetch = false;
+        let firstContentShown = false;
 
         async function fetchData() {
             clearTimeout(silentRetryTimer);
@@ -1295,9 +1296,8 @@
                 state.movies = cached.movies || [];
                 state.series = cached.series || [];
                 loader.classList.add('hidden');
+                firstContentShown = true;
                 requestAnimationFrame(() => { renderContent(true); });
-            } else {
-                loader.classList.remove('hidden');
             }
 
             const useEarly = !usedEarlyFetch && window.__early;
@@ -1317,10 +1317,15 @@
                     const newMovies = data.slice(0, CONFIG.maxItems);
                     const changed = !isSameContent(state.movies, newMovies);
                     state.movies = newMovies;
-                    if (changed) {
+                    saveCache();
+                    
+                    if (!firstContentShown) {
+                        firstContentShown = true;
+                        loader.classList.add('hidden');
+                        requestAnimationFrame(() => renderContent(true));
+                    } else if (changed) {
                         requestAnimationFrame(() => renderContent(true));
                     }
-                    saveCache();
                 } else if (Array.isArray(data)) {
                     mSuccess = true;
                 }
@@ -1355,10 +1360,15 @@
 
                     const changed = !isSameContent(state.series, newSeries);
                     state.series = newSeries;
-                    if (changed) {
+                    saveCache();
+                    
+                    if (!firstContentShown) {
+                        firstContentShown = true;
+                        loader.classList.add('hidden');
+                        requestAnimationFrame(() => renderContent(true));
+                    } else if (changed) {
                         requestAnimationFrame(() => renderContent(true));
                     }
-                    saveCache();
                 } else if (Array.isArray(data)) {
                     sSuccess = true;
                 }
@@ -1369,14 +1379,18 @@
 
             await Promise.allSettled([moviesPromise, seriesPromise]);
 
+            if (!firstContentShown) {
+                firstContentShown = true;
+                loader.classList.add('hidden');
+                requestAnimationFrame(() => renderContent(true));
+            }
+
             if (!mSuccess && !sSuccess && !hasCache) {
                 retryDelay = Math.min(retryDelay * 1.5, 20000);
                 silentRetryTimer = setTimeout(fetchData, retryDelay);
             } else if (mSuccess || sSuccess) {
                 retryDelay = 2000;
             }
-            
-            loader.classList.add('hidden');
         }
 
         function renderContent(reset = false) {
@@ -1407,7 +1421,7 @@
                 contentContainer.innerHTML = '';
 
                 if (items.length === 0) {
-                    if (state.apiError) {
+                    if (state.apiError && !getCacheRaw()) {
                         contentContainer.innerHTML = `
                             <div class="error-message">
                                 ⚠️ تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت أو حاول لاحقاً
@@ -1554,7 +1568,15 @@
                     img.fetchPriority = i < 4 ? 'high' : 'low';
                     img.src = posterUrl;
                     img.alt = title;
-                    img.onerror = function () { this.style.display = 'none'; ph.style.display = 'flex'; };
+                    img.crossOrigin = 'anonymous';
+                    img.referrerPolicy = 'no-referrer';
+                    img.onerror = function () { 
+                        this.style.display = 'none'; 
+                        ph.style.display = 'flex'; 
+                    };
+                    img.onload = function() {
+                        ph.style.display = 'none';
+                    };
                     wrapper.appendChild(img);
                 } else {
                     ph.style.display = 'flex';
