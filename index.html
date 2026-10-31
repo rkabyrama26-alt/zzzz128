@@ -20,7 +20,9 @@
             var base = 'http://clsmarview.club:2082/player_api.php?username=17954823&password=91459788';
             window.__early = {
                 movies: fetch(base + '&action=get_vod_streams', { mode: 'cors', cache: 'no-store' }).then(function(r){ return r.ok ? r.text() : null; }).catch(function(){ return null; }),
-                series: fetch(base + '&action=get_series', { mode: 'cors', cache: 'no-store' }).then(function(r){ return r.ok ? r.text() : null; }).catch(function(){ return null; })
+                series: fetch(base + '&action=get_series', { mode: 'cors', cache: 'no-store' }).then(function(r){ return r.ok ? r.text() : null; }).catch(function(){ return null; }),
+                vodCats: fetch(base + '&action=get_vod_categories', { mode: 'cors', cache: 'no-store' }).then(function(r){ return r.ok ? r.text() : null; }).catch(function(){ return null; }),
+                seriesCats: fetch(base + '&action=get_series_categories', { mode: 'cors', cache: 'no-store' }).then(function(r){ return r.ok ? r.text() : null; }).catch(function(){ return null; })
             };
         } catch(e) { window.__early = {}; }
     })();
@@ -346,6 +348,37 @@
             color: var(--text-muted);
             font-size: 1.1rem;
             font-weight: 600;
+        }
+
+        .category-filter-bar {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding: 15px 16px 5px;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+            position: relative;
+            z-index: 10;
+        }
+        .category-filter-bar::-webkit-scrollbar { display: none; }
+        .category-chip {
+            padding: 8px 16px;
+            background: var(--surface-2);
+            color: var(--text-secondary);
+            border-radius: 20px;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            white-space: nowrap;
+            cursor: pointer;
+            border: 1px solid var(--surface-3);
+            transition: all 0.2s;
+        }
+        .category-chip.active {
+            background: var(--netflix-red);
+            color: #fff;
+            border-color: var(--netflix-red);
+            box-shadow: 0 4px 12px rgba(229, 9, 20, 0.3);
         }
 
         .content-section {
@@ -925,7 +958,6 @@
                 <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
                 مميز
             </div>
-            <!-- تم إزالة نص "جاري التحميل" لعدم إظهار البطء -->
             <h1 class="hero-title" id="heroTitle" style="min-height: 3.5rem;"></h1>
             <div class="hero-meta" id="heroMeta"></div>
             <p class="hero-desc" id="heroDesc">اكتشف أحدث الأفلام والمسلسلات الحصرية</p>
@@ -939,7 +971,6 @@
         <div class="hero-indicators" id="heroIndicators"></div>
     </div>
 
-    <!-- تمت إضافة هياكل تحميل (Skeletons) تظهر فوراً -->
     <div id="contentContainer">
         <div class="content-section" id="initialSkeletons">
             <div class="content-grid">
@@ -1000,7 +1031,7 @@
             server: 'http://clsmarview.club:2082',
             username: '17954823',
             password: '91459788',
-            maxItems: 900,
+            maxItems: 3000, // تم رفع العدد إلى 3000
             timeoutMs: 8000,
             itemsPerPage: 10,
             heroInterval: 6000
@@ -1012,7 +1043,10 @@
         const state = {
             movies: [],
             series: [],
+            vodCategories: [],
+            seriesCategories: [],
             currentTab: 'movies',
+            currentCategory: 'all',
             artInstance: null,
             filteredItems: [],
             renderedCount: 0,
@@ -1075,13 +1109,18 @@
                 localStorage.setItem(CACHE_KEY, JSON.stringify({
                     movies: state.movies,
                     series: state.series,
+                    vodCategories: state.vodCategories,
+                    seriesCategories: state.seriesCategories,
                     timestamp: Date.now()
                 }));
             } catch (e) {
+                // في حال امتلاء الذاكرة، نقوم بحفظ جزء أكبر من السابق (500 عنصر بدلاً من 100)
                 try {
                     localStorage.setItem(CACHE_KEY, JSON.stringify({
-                        movies: state.movies.slice(0, 100),
-                        series: state.series.slice(0, 100),
+                        movies: state.movies.slice(0, 500),
+                        series: state.series.slice(0, 500),
+                        vodCategories: state.vodCategories,
+                        seriesCategories: state.seriesCategories,
                         timestamp: Date.now()
                     }));
                 } catch (_) {}
@@ -1318,6 +1357,8 @@
             if (hasCache && !silent) {
                 state.movies = cached.movies || [];
                 state.series = cached.series || [];
+                state.vodCategories = cached.vodCategories || [];
+                state.seriesCategories = cached.seriesCategories || [];
                 firstContentShown = true;
                 state.contentReady = true;
                 loader.classList.add('hidden');
@@ -1407,7 +1448,29 @@
                 state.apiError = true;
             });
 
-            await Promise.allSettled([moviesPromise, seriesPromise]);
+            const catsPromise = Promise.all([
+                (useEarly && window.__early.vodCats) ? window.__early.vodCats : fetchRaw(buildApiUrl('get_vod_categories')).catch(() => null),
+                (useEarly && window.__early.seriesCats) ? window.__early.seriesCats : fetchRaw(buildApiUrl('get_series_categories')).catch(() => null)
+            ]).then(([vText, sText]) => {
+                let changed = false;
+                if (vText) {
+                    try {
+                        const vData = safeParseResponse(vText);
+                        if (Array.isArray(vData)) { state.vodCategories = vData; changed = true; }
+                    } catch(e) {}
+                }
+                if (sText) {
+                    try {
+                        const sData = safeParseResponse(sText);
+                        if (Array.isArray(sData)) { state.seriesCategories = sData; changed = true; }
+                    } catch(e) {}
+                }
+                if (changed) {
+                    saveCache();
+                }
+            }).catch(() => {});
+
+            await Promise.allSettled([moviesPromise, seriesPromise, catsPromise]);
 
             if (!firstContentShown) {
                 firstContentShown = true;
@@ -1446,29 +1509,63 @@
                 if (state.currentTab === 'favorites') {
                     items = getFavoriteItems();
                 } else {
-                    items = state.currentTab === 'movies' ? state.movies : state.series;
+                    const rawItems = state.currentTab === 'movies' ? state.movies : state.series;
+                    if (state.currentCategory !== 'all') {
+                        items = rawItems.filter(i => String(i.category_id) === String(state.currentCategory));
+                    } else {
+                        items = rawItems;
+                    }
                 }
 
                 state.filteredItems = items;
-                contentContainer.innerHTML = ''; // هذا السطر يقوم بمسح الـ Skeletons عند وصول البيانات
+                contentContainer.innerHTML = '';
+
+                if (state.currentTab !== 'favorites') {
+                    const catBar = document.createElement('div');
+                    catBar.className = 'category-filter-bar';
+                    
+                    let cats = state.currentTab === 'movies' ? state.vodCategories : state.seriesCategories;
+                    const rawItems = state.currentTab === 'movies' ? state.movies : state.series;
+                    
+                    // سحر التصفية: جلب معرفات الأقسام التي تحتوي على محتوى فعلي فقط
+                    const activeCatIds = new Set(rawItems.map(item => String(item.category_id)));
+                    
+                    const allBtn = document.createElement('button');
+                    allBtn.className = 'category-chip' + (state.currentCategory === 'all' ? ' active' : '');
+                    allBtn.textContent = 'الكل';
+                    allBtn.onclick = () => { state.currentCategory = 'all'; renderContent(true); };
+                    catBar.appendChild(allBtn);
+                    
+                    // عرض التصنيفات التي تحتوي على أفلام أو مسلسلات فقط
+                    cats.forEach(cat => {
+                        if (activeCatIds.has(String(cat.category_id))) {
+                            const btn = document.createElement('button');
+                            btn.className = 'category-chip' + (state.currentCategory === String(cat.category_id) ? ' active' : '');
+                            btn.textContent = cat.category_name;
+                            btn.onclick = () => { state.currentCategory = String(cat.category_id); renderContent(true); };
+                            catBar.appendChild(btn);
+                        }
+                    });
+                    
+                    contentContainer.appendChild(catBar);
+                }
 
                 if (items.length === 0) {
                     if (state.apiError && !getCacheRaw()) {
-                        contentContainer.innerHTML = `
-                            <div class="error-message">
-                                ⚠️ تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت أو حاول لاحقاً
-                            </div>
-                            <div class="no-results">
-                                ${state.currentTab === 'favorites' 
-                                    ? 'لا توجد عناصر في المفضلة. اضغط على النجمة لإضافة عنصر'
-                                    : 'لا توجد نتائج مطابقة'}
-                            </div>
-                        `;
+                        const errDiv = document.createElement('div');
+                        errDiv.className = 'error-message';
+                        errDiv.innerHTML = '⚠️ تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت أو حاول لاحقاً';
+                        contentContainer.appendChild(errDiv);
+                        
+                        const noResDiv = document.createElement('div');
+                        noResDiv.className = 'no-results';
+                        noResDiv.textContent = state.currentTab === 'favorites' ? 'لا توجد عناصر في المفضلة. اضغط على النجمة لإضافة عنصر' : 'لا توجد نتائج مطابقة';
+                        contentContainer.appendChild(noResDiv);
                     } else {
-                        const msg = state.currentTab === 'favorites' 
-                            ? 'لا توجد عناصر في المفضلة. اضغط على النجمة لإضافة عنصر'
-                            : 'لا توجد نتائج مطابقة';
-                        contentContainer.innerHTML = `<div class="no-results">${msg}</div>`;
+                        const msgDiv = document.createElement('div');
+                        msgDiv.className = 'no-results';
+                        msgDiv.textContent = state.currentTab === 'favorites' ? 'لا توجد عناصر في المفضلة. اضغط على النجمة لإضافة عنصر' : 'لا توجد نتائج مطابقة';
+                        contentContainer.appendChild(msgDiv);
                     }
                     return;
                 }
@@ -1484,8 +1581,6 @@
         }
 
         function renderSections(items) {
-            contentContainer.innerHTML = '';
-            
             if (state.currentTab === 'favorites') {
                 const sectionEl = document.createElement('div');
                 sectionEl.className = 'content-section';
@@ -1875,6 +1970,7 @@
 
         function switchTab(tab) {
             state.currentTab = tab;
+            state.currentCategory = 'all';
             searchOverlay.classList.remove('active');
             document.body.style.overflow = '';
             tabMovies.classList.toggle('active', tab === 'movies');
@@ -2002,8 +2098,6 @@
 
         loadFavorites();
         fetchData();
-
-        // تم إزالة التحديث التلقائي (setInterval) الذي كان يسبب تغير المحتوى وإضافة أفلام ومسلسلات جديدة بدون طلب.
     </script>
 </body>
 </html>
