@@ -19,8 +19,9 @@
         try {
             var base = 'http://clsmarview.club:2082/player_api.php?username=17954823&password=91459788';
             window.__early = {
-                movies: fetch(base + '&action=get_vod_streams', { mode: 'cors', cache: 'no-store' }).then(function(r){ return r.ok ? r.text() : null; }).catch(function(){ return null; }),
-                series: fetch(base + '&action=get_series', { mode: 'cors', cache: 'no-store' }).then(function(r){ return r.ok ? r.text() : null; }).catch(function(){ return null; })
+                // تم إزالة cache: 'no-store' ليعتمد على كاش المتصفح ويظهر المحتوى أسرع
+                movies: fetch(base + '&action=get_vod_streams', { mode: 'cors' }).then(function(r){ return r.ok ? r.text() : null; }).catch(function(){ return null; }),
+                series: fetch(base + '&action=get_series', { mode: 'cors' }).then(function(r){ return r.ok ? r.text() : null; }).catch(function(){ return null; })
             };
         } catch(e) { window.__early = {}; }
     })();
@@ -920,16 +921,19 @@
         <div class="hero-backdrop" id="heroBackdrop"></div>
         <div class="hero-gradient-top"></div>
         <div class="hero-gradient-bottom"></div>
-        <div class="hero-content" id="heroContent">
+        <!-- تم إخفاء محتوى الهيرو بـ opacity: 0 لحين تحميل البيانات -->
+        <div class="hero-content" id="heroContent" style="opacity: 0; transition: opacity 0.5s ease;">
             <div class="hero-badge">
                 <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
                 مميز
             </div>
-            <h1 class="hero-title" id="heroTitle">جاري التحميل...</h1>
+            <!-- تم إزالة نص "جاري التحميل..." ليظهر فارغاً -->
+            <h1 class="hero-title" id="heroTitle"></h1>
             <div class="hero-meta" id="heroMeta"></div>
             <p class="hero-desc" id="heroDesc">اكتشف أحدث الأفلام والمسلسلات الحصرية</p>
             <div class="hero-buttons">
-                <button class="hero-btn play" id="heroPlayBtn">
+                <!-- تم إخفاء زر التشغيل لحين جلب البيانات -->
+                <button class="hero-btn play" id="heroPlayBtn" style="display: none;">
                     <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
                     تشغيل
                 </button>
@@ -986,7 +990,7 @@
             username: '17954823',
             password: '91459788',
             maxItems: 900,
-            timeoutMs: 8000,
+            timeoutMs: 15000, // زيادة وقت المهلة لضمان جلب البيانات على الشبكات البطيئة
             itemsPerPage: 10,
             heroInterval: 6000,
             autoRefreshMs: 60000
@@ -1197,6 +1201,10 @@
         function setupHeroCarousel(items) {
             if (!items || items.length === 0) return;
             
+            // إظهار محتوى الهيرو عند تحميل البيانات
+            document.getElementById('heroContent').style.opacity = '1';
+            document.getElementById('heroPlayBtn').style.display = 'inline-flex';
+            
             const withPoster = items.filter(i => i.stream_icon || i.cover);
             const pool = withPoster.length > 0 ? withPoster : items;
             
@@ -1301,7 +1309,6 @@
             const cached = getCacheRaw();
             const hasCache = cached && ((cached.movies && cached.movies.length) || (cached.series && cached.series.length));
 
-            // في الوضع الصامت: لا نعيد رسم الكاش لأن الواجهة محمّلة أصلاً
             if (hasCache && !silent) {
                 state.movies = cached.movies || [];
                 state.series = cached.series || [];
@@ -1309,6 +1316,16 @@
                 state.contentReady = true;
                 loader.classList.add('hidden');
                 requestAnimationFrame(() => { renderContent(true); });
+            } else if (!hasCache && !firstContentShown) {
+                // إظهار هياكل التحميل (Skeletons) بدلاً من الشاشة السوداء أو نص "جاري التحميل"
+                contentContainer.innerHTML = `
+                    <div class="content-section">
+                        <h2 class="section-title">جاري التحميل...</h2>
+                        <div class="content-grid">
+                            ${Array(6).fill('<div class="skeleton-card"></div>').join('')}
+                        </div>
+                    </div>
+                `;
             }
 
             const useEarly = !usedEarlyFetch && window.__early;
@@ -1336,7 +1353,6 @@
                         loader.classList.add('hidden');
                         requestAnimationFrame(() => renderContent(true));
                     } else if (changed) {
-                        // في الوضع الصامت: حدّث الواجهة فقط إذا كان المستخدم في الأعلى
                         if (!silent || window.scrollY < 300) {
                             requestAnimationFrame(() => renderContent(true));
                         }
@@ -1991,18 +2007,8 @@
         loadFavorites();
         fetchData();
 
-        // ✅ التحديث التلقائي: كل 60 ثانية يعيد جلب المحتوى من السيرفر ويكتشف أي إضافة/تغيير
-        // - يتوقف أثناء المشاهدة أو فتح نافذة
-        // - لا يعيد الرسم إذا كان المستخدم يمرر لأسفل (لتجنب القفز)
-        setInterval(function() {
-            if (!document.hidden && 
-                !playerModal.classList.contains('active') && 
-                !episodesModal.classList.contains('active') &&
-                !searchOverlay.classList.contains('active') &&
-                !telegramModal.classList.contains('active')) {
-                fetchData(true);
-            }
-        }, CONFIG.autoRefreshMs);
+        // ملاحظة: تم إزالة كود التحديث التلقائي (setInterval) الذي كان يقوم بتغيير المحتوى كل 60 ثانية
+        // لضمان بقاء المحتوى ثابتاً ولا يتغير إلا عند تحديث الصفحة يدوياً.
     </script>
 </body>
 </html>
