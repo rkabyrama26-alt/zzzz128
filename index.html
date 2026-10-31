@@ -19,9 +19,8 @@
         try {
             var base = 'http://clsmarview.club:2082/player_api.php?username=17954823&password=91459788';
             window.__early = {
-                // تم إزالة cache: 'no-store' ليعتمد على كاش المتصفح ويظهر المحتوى أسرع
-                movies: fetch(base + '&action=get_vod_streams', { mode: 'cors' }).then(function(r){ return r.ok ? r.text() : null; }).catch(function(){ return null; }),
-                series: fetch(base + '&action=get_series', { mode: 'cors' }).then(function(r){ return r.ok ? r.text() : null; }).catch(function(){ return null; })
+                movies: fetch(base + '&action=get_vod_streams', { mode: 'cors', cache: 'no-store' }).then(function(r){ return r.ok ? r.text() : null; }).catch(function(){ return null; }),
+                series: fetch(base + '&action=get_series', { mode: 'cors', cache: 'no-store' }).then(function(r){ return r.ok ? r.text() : null; }).catch(function(){ return null; })
             };
         } catch(e) { window.__early = {}; }
     })();
@@ -921,19 +920,17 @@
         <div class="hero-backdrop" id="heroBackdrop"></div>
         <div class="hero-gradient-top"></div>
         <div class="hero-gradient-bottom"></div>
-        <!-- تم إخفاء محتوى الهيرو بـ opacity: 0 لحين تحميل البيانات -->
-        <div class="hero-content" id="heroContent" style="opacity: 0; transition: opacity 0.5s ease;">
+        <div class="hero-content" id="heroContent">
             <div class="hero-badge">
                 <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
                 مميز
             </div>
-            <!-- تم إزالة نص "جاري التحميل..." ليظهر فارغاً -->
-            <h1 class="hero-title" id="heroTitle"></h1>
+            <!-- تم إزالة نص "جاري التحميل" لعدم إظهار البطء -->
+            <h1 class="hero-title" id="heroTitle" style="min-height: 3.5rem;"></h1>
             <div class="hero-meta" id="heroMeta"></div>
             <p class="hero-desc" id="heroDesc">اكتشف أحدث الأفلام والمسلسلات الحصرية</p>
             <div class="hero-buttons">
-                <!-- تم إخفاء زر التشغيل لحين جلب البيانات -->
-                <button class="hero-btn play" id="heroPlayBtn" style="display: none;">
+                <button class="hero-btn play" id="heroPlayBtn">
                     <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
                     تشغيل
                 </button>
@@ -942,7 +939,21 @@
         <div class="hero-indicators" id="heroIndicators"></div>
     </div>
 
-    <div id="contentContainer"></div>
+    <!-- تمت إضافة هياكل تحميل (Skeletons) تظهر فوراً -->
+    <div id="contentContainer">
+        <div class="content-section" id="initialSkeletons">
+            <div class="content-grid">
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+            </div>
+        </div>
+    </div>
 
     <nav class="bottom-nav">
         <button class="nav-item active" data-tab="movies" id="tabMovies">
@@ -990,10 +1001,9 @@
             username: '17954823',
             password: '91459788',
             maxItems: 900,
-            timeoutMs: 15000, // زيادة وقت المهلة لضمان جلب البيانات على الشبكات البطيئة
+            timeoutMs: 8000,
             itemsPerPage: 10,
-            heroInterval: 6000,
-            autoRefreshMs: 60000
+            heroInterval: 6000
         };
 
         const CACHE_KEY = 'iptv_cache_v6';
@@ -1201,10 +1211,6 @@
         function setupHeroCarousel(items) {
             if (!items || items.length === 0) return;
             
-            // إظهار محتوى الهيرو عند تحميل البيانات
-            document.getElementById('heroContent').style.opacity = '1';
-            document.getElementById('heroPlayBtn').style.display = 'inline-flex';
-            
             const withPoster = items.filter(i => i.stream_icon || i.cover);
             const pool = withPoster.length > 0 ? withPoster : items;
             
@@ -1316,16 +1322,6 @@
                 state.contentReady = true;
                 loader.classList.add('hidden');
                 requestAnimationFrame(() => { renderContent(true); });
-            } else if (!hasCache && !firstContentShown) {
-                // إظهار هياكل التحميل (Skeletons) بدلاً من الشاشة السوداء أو نص "جاري التحميل"
-                contentContainer.innerHTML = `
-                    <div class="content-section">
-                        <h2 class="section-title">جاري التحميل...</h2>
-                        <div class="content-grid">
-                            ${Array(6).fill('<div class="skeleton-card"></div>').join('')}
-                        </div>
-                    </div>
-                `;
             }
 
             const useEarly = !usedEarlyFetch && window.__early;
@@ -1454,7 +1450,7 @@
                 }
 
                 state.filteredItems = items;
-                contentContainer.innerHTML = '';
+                contentContainer.innerHTML = ''; // هذا السطر يقوم بمسح الـ Skeletons عند وصول البيانات
 
                 if (items.length === 0) {
                     if (state.apiError && !getCacheRaw()) {
@@ -2007,8 +2003,7 @@
         loadFavorites();
         fetchData();
 
-        // ملاحظة: تم إزالة كود التحديث التلقائي (setInterval) الذي كان يقوم بتغيير المحتوى كل 60 ثانية
-        // لضمان بقاء المحتوى ثابتاً ولا يتغير إلا عند تحديث الصفحة يدوياً.
+        // تم إزالة التحديث التلقائي (setInterval) الذي كان يسبب تغير المحتوى وإضافة أفلام ومسلسلات جديدة بدون طلب.
     </script>
 </body>
 </html>
